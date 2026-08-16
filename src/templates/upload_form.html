@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate Photo Submission - Dr. {{ doctor.name }}{% endblock %}
+
+{% block content %}
+<div class="upload-page-bg">
+  <div class="card">
+    <div class="brand-header">
+      <div style="font-size: 2.2rem; font-weight: 800; color: #1e1b4b; margin-bottom: 0.25rem;">✨ PICTOART</div>
+      <div class="brand-title">Doctor Honor Certificate</div>
+      <div class="brand-subtitle">Please submit your photo and details for your customized typographic portrait certificate.</div>
+    </div>
+
+    {% if error_message %}
+      <div class="alert alert-danger">{{ error_message }}</div>
+    {% endif %}
+
+    <div id="client-error" class="alert alert-danger" style="display: none;"></div>
+
+    <form id="doctor-upload-form" action="/upload/{{ doctor.unique_token }}" method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <label class="form-label" for="name">Full Name (as it will appear on certificate) *</label>
+        <input type="text" id="name" name="name" class="form-input" value="{{ doctor.name }}" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="years_experience">Years of Experience</label>
+        <input type="number" id="years_experience" name="years_experience" class="form-input" placeholder="e.g. 15" value="{{ doctor.years_experience or '' }}" min="0" max="70">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="specialization">Specialization / Department</label>
+        <input type="text" id="specialization" name="specialization" class="form-input" placeholder="e.g. Cardiology, Internal Medicine" value="{{ doctor.specialization or '' }}">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="achievements_text">Key Achievements & Recognitions</label>
+        <textarea id="achievements_text" name="achievements_text" class="form-textarea" placeholder="e.g. 10,000+ Patients Treated, Gold Medalist, Fellow of ACC" maxlength="500">{{ doctor.achievements_text or '' }}</textarea>
+        <div class="helper-text">These achievements will be formed into your typographic portrait art! (Max 500 characters)</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Upload Portrait Photo *</label>
+        <div id="photo-upload-box" class="photo-upload-box">
+          <div style="font-size: 2rem; color: #2563eb; margin-bottom: 0.5rem;">📸</div>
+          <div style="font-weight: 600; color: #1e293b;">Click or drag to select portrait photo</div>
+          <div class="helper-text" style="margin-top: 0.25rem; font-style: italic;">
+            "For best results: front-facing, well-lit photo with a plain background."
+          </div>
+          <input type="file" id="photo-input" name="photo" accept="image/png, image/jpeg, image/jpg, image/webp" style="display: none;" required>
+          <img id="photo-preview" class="photo-preview" alt="Photo Preview">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full" style="margin-top: 1rem;">
+        Submit Photo & Generate Certificate →
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/upload.js"></script>
+{% endblock %}

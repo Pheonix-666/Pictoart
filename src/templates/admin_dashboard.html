@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - PICTOART{% endblock %}
+
+{% block content %}
+<div class="admin-navbar">
+  <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <span style="font-size: 1.4rem; font-weight: 800;">✨ PICTOART</span>
+    <span style="background: #334155; color: #94a3b8; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">ADMIN</span>
+  </div>
+  <div class="nav-links">
+    <a href="/admin/doctors" style="color: #60a5fa; font-weight: 700;">Doctors List</a>
+    <a href="/admin/import">📥 Import Doctors CSV</a>
+    <a href="/admin/export-links">🔗 Export Link List</a>
+    <a href="/admin/bulk-export?status_filter=approved">📦 Bulk Download ZIP</a>
+    <a href="/admin/audit-logs">📜 Audit Logs</a>
+    <a href="/admin/logout" style="color: #f87171;">Logout ({{ admin.email }})</a>
+  </div>
+</div>
+
+<div class="container" style="padding-top: 2rem;">
+  <!-- Filter Pills -->
+  <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+    <a href="/admin/doctors?status_filter=all&q={{ q }}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.8rem; {% if current_status == 'all' %}background: #2563eb; color: #fff;{% endif %}">
+      All ({{ counts.all }})
+    </a>
+    <a href="/admin/doctors?status_filter=ready_for_review&q={{ q }}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.8rem; {% if current_status == 'ready_for_review' %}background: #f59e0b; color: #fff;{% endif %}">
+      Ready for Review ({{ counts.ready_for_review }})
+    </a>
+    <a href="/admin/doctors?status_filter=approved&q={{ q }}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.8rem; {% if current_status == 'approved' %}background: #10b981; color: #fff;{% endif %}">
+      Approved ({{ counts.approved }})
+    </a>
+    <a href="/admin/doctors?status_filter=needs_reupload&q={{ q }}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.8rem; {% if current_status == 'needs_reupload' %}background: #ef4444; color: #fff;{% endif %}">
+      Needs Re-upload ({{ counts.needs_reupload }})
+    </a>
+    <a href="/admin/doctors?status_filter=submitted&q={{ q }}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.8rem; {% if current_status == 'submitted' %}background: #3b82f6; color: #fff;{% endif %}">
+      Submitted ({{ counts.submitted }})
+    </a>
+    <a href="/admin/doctors?status_filter=not_submitted&q={{ q }}" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.8rem; {% if current_status == 'not_submitted' %}background: #64748b; color: #fff;{% endif %}">
+      Not Submitted ({{ counts.not_submitted }})
+    </a>
+  </div>
+
+  <!-- Search & Bulk Action Header -->
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
+    <form action="/admin/doctors" method="GET" style="display: flex; gap: 0.5rem; flex: 1; max-width: 450px;">
+      <input type="hidden" name="status_filter" value="{{ current_status }}">
+      <input type="text" name="q" value="{{ q }}" class="form-input" placeholder="Search by doctor name or contact..." style="padding: 0.5rem 0.8rem;">
+      <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">Search</button>
+    </form>
+
+    <div style="display: flex; gap: 0.75rem;">
+      <form id="bulk-approve-form" action="/admin/bulk-approve" method="POST" style="display: inline;">
+        <input type="hidden" name="doctor_ids_csv" id="doctor_ids_csv_input" value="">
+        <button type="button" class="btn btn-success" onclick="submitBulkApprove()">
+          &#10003; Bulk Approve Selected
+        </button>
+      </form>
+
+      <a href="/admin/bulk-export?status_filter={{ current_status }}" class="btn btn-primary">
+        &#128230; Export Approved ZIP
+      </a>
+    </div>
+  </div>
+
+  <!-- Doctor Table -->
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width: 40px;"><input type="checkbox" id="select-all"></th>
+          <th>ID</th>
+          <th>Doctor Name</th>
+          <th>Contact</th>
+          <th>Status</th>
+          <th>Unique Upload Link</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for doc in doctors %}
+        <tr>
+          <td><input type="checkbox" class="doctor-select-cb" value="{{ doc.id }}"></td>
+          <td style="font-weight: 600; color: #64748b;">#{{ doc.id }}</td>
+          <td>
+            <a href="/admin/doctor/{{ doc.id }}" style="font-weight: 700; color: #0f172a; text-decoration: none;">
+              Dr. {{ doc.name }}
+            </a>
+            {% if doc.specialization %}
+              <div style="font-size: 0.75rem; color: #64748b;">{{ doc.specialization }}</div>
+            {% endif %}
+          </td>
+          <td style="font-size: 0.85rem; color: #475569;">{{ doc.contact or 'N/A' }}</td>
+          <td>
+            <span class="badge badge-{{ doc.status.value }}">
+              {{ doc.status.value.replace('_', ' ') }}
+            </span>
+          </td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <input type="text" readonly value="{{ base_url }}/upload/{{ doc.unique_token }}" class="form-input" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; width: 220px; font-family: monospace;">
+              <button class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="copyLink('{{ base_url }}/upload/{{ doc.unique_token }}')">Copy</button>
+            </div>
+          </td>
+          <td>
+            <div style="display: flex; gap: 0.35rem;">
+              <a href="/admin/doctor/{{ doc.id }}" class="btn btn-primary" style="padding: 0.25rem 0.6rem; font-size: 0.75rem;">Review</a>
+              <button onclick="deleteDoctor({{ doc.id }}, 'Dr. {{ doc.name }}')" class="btn btn-danger" style="padding: 0.25rem 0.6rem; font-size: 0.75rem;">Delete</button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" style="text-align: center; color: #94a3b8; padding: 2rem;">
+            No doctor records found matching criteria.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Select-all checkbox
+  document.getElementById('select-all').addEventListener('change', function() {
+    document.querySelectorAll('.doctor-select-cb').forEach(cb => cb.checked = this.checked);
+  });
+
+  // Collect checked IDs into hidden CSV field, then submit
+  function submitBulkApprove() {
+    const ids = [];
+    document.querySelectorAll('.doctor-select-cb:checked').forEach(cb => ids.push(cb.value));
+    if (ids.length === 0) { alert('Please select at least one doctor to approve.'); return; }
+    if (!confirm(`Bulk approve ${ids.length} selected doctor(s)?`)) return;
+    document.getElementById('doctor_ids_csv_input').value = ids.join(',');
+    document.getElementById('bulk-approve-form').submit();
+  }
+
+  function copyLink(url) {
+    navigator.clipboard.writeText(url).then(() => alert('Doctor upload link copied to clipboard!'));
+  }
+
+  function deleteDoctor(id, name) {
+    if (confirm(`Permanently delete ${name} and all their uploaded/generated files?`)) {
+      fetch(`/admin/doctor/${id}`, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(data => { if (data.success) window.location.reload(); else alert('Error deleting record'); });
+    }
+  }
+</script>
+{% endblock %}

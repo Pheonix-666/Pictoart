@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Certificate Submission Confirmation - Dr. {{ doctor.name }}{% endblock %}
+
+{% block content %}
+<div class="upload-page-bg">
+  <div class="card" style="text-align: center;">
+    <div style="font-size: 3.5rem; color: #10b981; margin-bottom: 1rem;">🎉</div>
+    
+    <h2 style="color: #0f172a; margin-bottom: 0.5rem;">Thank You, Dr. {{ doctor.name }}!</h2>
+    <p style="color: #64748b; margin-bottom: 1.5rem;">Your certificate artwork is being prepared by our typographic art engine.</p>
+
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
+      <div style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">CURRENT CERTIFICATE STATUS</div>
+      <span id="status-badge" class="badge badge-{{ doctor.status.value }}">
+        {{ doctor.status.value.replace('_', ' ') }}
+      </span>
+      <div id="status-spinner" style="margin-top: 0.75rem; font-size: 0.85rem; color: #3b82f6;">
+        ⚡ Background processing active...
+      </div>
+    </div>
+
+    <p style="font-size: 0.85rem; color: #94a3b8;">You may close this page now. Your certificate will be reviewed and finalized shortly.</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Poll submission status every 3 seconds
+  const token = "{{ doctor.unique_token }}";
+  function checkStatus() {
+    fetch(`/upload/${token}/status`)
+      .then(res => res.json())
+      .then(data => {
+        const badge = document.getElementById("status-badge");
+        const spinner = document.getElementById("status-spinner");
+        if (badge) {
+          badge.className = `badge badge-${data.status}`;
+          badge.textContent = data.status.replace('_', ' ');
+        }
+        if (data.status === "ready_for_review" || data.status === "approved") {
+          if (spinner) spinner.innerHTML = "✅ Processing complete! Sent for final admin review.";
+        } else if (data.status === "needs_reupload") {
+          window.location.reload();
+        }
+      })
+      .catch(err => console.error("Status poll error:", err));
+  }
+  setInterval(checkStatus, 3000);
+</script>
+{% endblock %}

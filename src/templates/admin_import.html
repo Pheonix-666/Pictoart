@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Import Doctors - Admin PICTOART{% endblock %}
+
+{% block content %}
+<div class="admin-navbar">
+  <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <span style="font-size: 1.4rem; font-weight: 800;">✨ PICTOART</span>
+  </div>
+  <div class="nav-links">
+    <a href="/admin/doctors">← Back to Doctors List</a>
+  </div>
+</div>
+
+<div class="container" style="padding-top: 2rem; max-width: 900px;">
+  <div class="card card-wide">
+    <h2 style="color: #0f172a; margin-bottom: 0.5rem;">📥 Bulk Import Doctors CSV</h2>
+    <p style="color: #64748b; margin-bottom: 1.5rem;">Upload a CSV file containing doctor details. The system will create doctor records and generate a unique upload token for each doctor.</p>
+
+    {% if error_message %}
+      <div class="alert alert-danger">{{ error_message }}</div>
+    {% endif %}
+
+    {% if success_message %}
+      <div class="alert alert-success">
+        {{ success_message }}
+        <div style="margin-top: 0.5rem;">
+          <a href="/admin/export-links" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+            🔗 Download Unique Upload Links CSV
+          </a>
+        </div>
+      </div>
+    {% endif %}
+
+    <form action="/admin/import" method="POST" enctype="multipart/form-data" style="margin-bottom: 2rem;">
+      <div class="form-group">
+        <label class="form-label" for="file">Select Doctors CSV File</label>
+        <input type="file" id="file" name="file" accept=".csv" class="form-input" required>
+        <div class="helper-text">
+          CSV columns: <code>name</code> (required), <code>contact</code>, <code>years_experience</code>, <code>specialization</code>, <code>achievements_text</code>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary">
+        Parse & Import Doctors →
+      </button>
+    </form>
+
+    {% if imported_doctors %}
+    <h3 style="margin-bottom: 1rem; color: #1e293b;">Newly Generated Unique Upload Links</h3>
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Doctor Name</th>
+            <th>Contact</th>
+            <th>Generated Upload URL</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in imported_doctors %}
+          <tr>
+            <td>#{{ doc.id }}</td>
+            <td><strong>Dr. {{ doc.name }}</strong></td>
+            <td>{{ doc.contact or 'N/A' }}</td>
+            <td><code>{{ base_url }}/upload/{{ doc.unique_token }}</code></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

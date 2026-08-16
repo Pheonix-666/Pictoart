@@ -1,0 +1,39 @@
+[project]
+name = "pictoart"
+version = "0.1.0"
+description = "Doctor Word-Art Certificate Generator"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.28.0",
+    "sqlalchemy>=2.0.28",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+    "opencv-python-headless>=4.9.0.80",
+    "pillow>=10.2.0",
+    "numpy>=1.26.0",
+    "jinja2>=3.1.3",
+    "python-multipart>=0.0.9",
+    "bcrypt>=4.1.2",
+    "pyjwt>=2.8.0",
+    "rq>=1.16.0",
+    "slowapi>=0.1.9",
+    "httpx>=0.27.0",
+    "pytest>=8.1.0",
+    "rembg>=2.0.57",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

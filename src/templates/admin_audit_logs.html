@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Audit Logs - Admin PICTOART{% endblock %}
+
+{% block content %}
+<div class="admin-navbar">
+  <div style="display: flex; align-items: center; gap: 0.75rem;">
+    <span style="font-size: 1.4rem; font-weight: 800;">✨ PICTOART</span>
+  </div>
+  <div class="nav-links">
+    <a href="/admin/doctors">← Back to Doctors List</a>
+    <a href="/admin/logout" style="color: #f87171;">Logout ({{ admin.email }})</a>
+  </div>
+</div>
+
+<div class="container" style="padding-top: 2rem;">
+  <h1 style="color: #0f172a; margin-bottom: 0.5rem;">📜 Admin Audit Logs</h1>
+  <p style="color: #64748b; margin-bottom: 1.5rem;">Last 200 actions taken by admin staff.</p>
+
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Admin</th>
+          <th>Action</th>
+          <th>Target Doctor</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td style="white-space: nowrap; font-size: 0.8rem; color: #64748b;">
+            {{ log.created_at.strftime('%d %b %Y %H:%M') if log.created_at else 'N/A' }}
+          </td>
+          <td style="font-size: 0.85rem; color: #334155;">{{ log.admin_email or 'system' }}</td>
+          <td>
+            <span style="
+              padding: 0.2rem 0.55rem;
+              border-radius: 6px;
+              font-size: 0.75rem;
+              font-weight: 700;
+              background: {% if log.action in ['approve', 'bulk_approve'] %}#d1fae5; color: #065f46;
+              {% elif log.action in ['request_reupload', 'delete_doctor'] %}#fee2e2; color: #991b1b;
+              {% elif log.action in ['bulk_export', 'export_links'] %}#dbeafe; color: #1e40af;
+              {% elif log.action == 'import_csv' %}#f3e8ff; color: #6b21a8;
+              {% else %}#f1f5f9; color: #334155;{% endif %}
+            ">
+              {{ log.action.replace('_', ' ').upper() }}
+            </span>
+          </td>
+          <td style="font-size: 0.85rem;">
+            {% if log.target_doctor_id %}
+              <a href="/admin/doctor/{{ log.target_doctor_id }}" style="color: #2563eb; font-weight: 600;">#{{ log.target_doctor_id }}</a>
+            {% else %}
+              <span style="color: #94a3b8;">—</span>
+            {% endif %}
+          </td>
+          <td style="font-size: 0.82rem; color: #64748b; max-width: 350px; word-break: break-word;">{{ log.details or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" style="text-align: center; color: #94a3b8; padding: 2rem;">No audit log entries found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
