@@ -1,5 +1,5 @@
 """
-PICTOART CLI -- Admin utility tool for Doctor Word-Art Certificate Generator.
+PICTOART CLI -- Admin utility tool for Doctor Pencil Sketch Certificate Generator.
 
 Usage:
   python cli.py create-admin --email admin@vendor.com --password Secret123

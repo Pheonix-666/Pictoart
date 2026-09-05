@@ -4,10 +4,36 @@ __pycache__/
 build/
 dist/
 wheels/
-*.egg-info
+*.egg-info/
+.pytest_cache/
 
 # Virtual environments
-.venv
+.venv/
+venv/
+ENV/
 
-# Environment variables
+# Environment variables & secrets
 .env
+
+# SQLite Databases & Local runtime state
+*.db
+*.sqlite
+*.sqlite3
+
+# File Storage (ignore uploaded photos & generated art, preserve directory structure)
+storage/originals/*
+storage/generated/*
+storage/exports/*
+!storage/originals/.gitkeep
+!storage/generated/.gitkeep
+!storage/exports/.gitkeep
+debug_output/
+
+# Temporary test & debug images
+doctor_*.jpg
+sample_sketch_output.png
+
+# Node / NPM (Python project)
+node_modules/
+package.json
+package-lock.json

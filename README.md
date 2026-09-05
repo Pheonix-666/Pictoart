@@ -1,7 +1,7 @@
-# PICTOART — Doctor Word-Art Certificate Generator
+# PICTOART — Doctor Pencil Sketch Certificate Generator
 
-> Automated typographic portrait generation system for bulk pharma certificate production.  
-> Converts a doctor's photo + bio text into a high-resolution word-art portrait certificate, at scale for 20,000 doctors.
+> High-resolution graphite pencil sketch portrait & certificate generation system.  
+> Converts a doctor's portrait photo into an artistic pencil sketch certificate at scale for pharma recognition programs.
 
 ---
 
@@ -9,12 +9,12 @@
 
 | Layer | Technology |
 |---|---|
-| Backend | Python 3.10+ · FastAPI · Uvicorn |
-| Database | SQLite (dev) · PostgreSQL (production) |
-| Image Engine | OpenCV · Pillow · NumPy |
-| Background Jobs | ThreadPoolExecutor (dev) · Redis Queue / RQ (production) |
-| Templates | Jinja2 + Vanilla HTML/CSS |
-| Auth | bcrypt + JWT session cookies |
+| **Backend** | Python 3.10+ · FastAPI · Uvicorn |
+| **Database** | SQLite (development) · PostgreSQL (production) |
+| **Image Engine** | OpenCV · Pillow · NumPy |
+| **Background Jobs** | ThreadPoolExecutor (dev) · Redis Queue / RQ (production) |
+| **Templates** | Jinja2 + Vanilla CSS |
+| **Auth** | bcrypt + JWT session cookies |
 
 ---
 
@@ -22,35 +22,42 @@
 
 ```
 PICTOART/
-├── main.py                     # FastAPI app entry point
-├── cli.py                      # Admin CLI tool
-├── sample_doctors.csv          # Sample import data
-├── .env.example                # Environment variable template
-├── pyproject.toml              # Dependencies
+├── main.py                     # FastAPI application entry point
+├── cli.py                      # Admin CLI tool (create-admin, worker, import, export)
+├── process_sample.py           # Quick CLI script to run and test a photo
+├── debug_masks.py              # Debug utility to inspect masks and sketch output
+├── sample_doctors.csv          # Sample CSV for bulk doctor import
+├── sample_doctor_photo.jpg     # Sample test portrait photo
+├── .env.example                # Environment variable configuration template
+├── pyproject.toml              # Dependencies and project metadata
 ├── src/
 │   ├── config.py               # App settings (Pydantic Settings)
-│   ├── database.py             # SQLAlchemy engine & session
-│   ├── models.py               # DB models: Doctor, Submission, AdminUser, AuditLog
+│   ├── database.py             # SQLAlchemy engine & session factory
+│   ├── models.py               # Database models (Doctor, Submission, AdminUser, AuditLog)
 │   ├── schemas.py              # Pydantic request/response schemas
-│   ├── storage.py              # File storage manager (local / S3-compatible)
+│   ├── storage.py              # Local / S3-compatible file storage manager
 │   ├── art_engine/
-│   │   ├── preprocessor.py     # Image preprocessing & quality checks
-│   │   ├── segmentation.py     # OpenCV silhouette extraction
-│   │   ├── density.py          # Pixel density map generation
-│   │   ├── text_pool.py        # Weighted word pool builder
-│   │   ├── renderer.py         # Multi-scale word placement engine
-│   │   └── composer.py         # Certificate template layout + 300 DPI export
+│   │   ├── art_config.py       # Tunable constants for sketch lines, shading, & canvas
+│   │   ├── preprocessor.py     # Image validation & preprocessing
+│   │   ├── segmentation.py     # Face detection & subject silhouette segmentation
+│   │   ├── sketch.py           # Multi-scale DoG pencil line & graphite shading engine
+│   │   └── composer.py         # 300 DPI honorary presentation certificate layout
 │   ├── worker/
-│   │   ├── jobs.py             # Background art generation pipeline
-│   │   └── queue.py            # Queue manager (Thread / Redis Queue)
+│   │   ├── jobs.py             # Background sketch generation pipeline
+│   │   └── queue.py            # Asynchronous job queue manager
 │   ├── routers/
-│   │   ├── auth.py             # JWT auth, password hashing, audit logging
-│   │   ├── public.py           # Doctor upload form endpoints
-│   │   └── admin.py            # Full admin dashboard API
+│   │   ├── auth.py             # Admin authentication, hashing, & audit logs
+│   │   ├── public.py           # Doctor upload form & direct redirect routes
+│   │   └── admin.py            # Admin review dashboard, import, and bulk export
 │   ├── templates/              # Jinja2 HTML templates
-│   └── static/                 # CSS & JS assets
+│   └── static/                 # CSS & client-side assets
+├── storage/                    # Uploads & generated outputs (.gitignore managed)
+│   ├── originals/              # Original uploaded photos
+│   ├── generated/              # Rendered 300 DPI sketch certificates
+│   └── exports/                # Bulk exported ZIP archives
 └── tests/
-    └── test_core.py            # Core module test suite
+    ├── test_api.py             # API route tests
+    └── test_core.py            # Core engine, segmentation, & sketch unit tests
 ```
 
 ---
@@ -65,18 +72,19 @@ pip install -e .
 
 ### 2. Configure environment
 
+Copy `.env.example` to `.env`:
+
 ```bash
 copy .env.example .env
-# Edit .env with your settings (database URL, secret key, etc.)
 ```
 
-### 3. Create the first admin user
+### 3. Create Admin Account
 
 ```bash
-python cli.py create-admin --email admin@yourvendor.com --password YourPassword123
+python cli.py create-admin --email admin@pictoart.com --password admin123
 ```
 
-### 4. Start the server
+### 4. Start the Application
 
 ```bash
 python main.py
@@ -84,95 +92,44 @@ python main.py
 uvicorn main:app --reload
 ```
 
-Access at: `http://localhost:8000`
+The application will be available at: `http://localhost:8000`
 
 ---
 
-## Admin Workflow
+## Key URLs
 
-1. **Login** → `http://localhost:8000/admin/login`
-2. **Import doctors** → Upload `sample_doctors.csv` or your own CSV via Admin Dashboard
-3. **Export links** → Download CSV of unique upload links to send to doctors (WhatsApp / Email)
-4. Doctors open their unique link, upload photo + bio details
-5. Background worker generates word-art certificate automatically
-6. **Review** generated art per doctor — Approve, Request Re-upload, or Regenerate
-7. **Bulk Export** → Download all approved certificates as a ZIP archive
-
----
-
-## Doctor-Facing Submission
-
-Each doctor receives a unique link in format:
-```
-http://yourdomain.com/upload/<unique_token>
-```
-
-The link:
-- Pre-fills their name
-- Collects photo + bio fields
-- Validates photo (min 600×600px, max 10MB, JPEG/PNG only)
-- Shows a live preview before submission
-- Displays a confirmation screen after submission
-
----
-
-## CSV Import Format
-
-```csv
-name,contact,years_experience,specialization,achievements_text
-Dr. Rajesh Kumar,+91-9876543210,22,Cardiology,"10000+ Patients Treated, FACC Fellow"
-```
-
-| Column | Required | Notes |
-|---|---|---|
-| name | Yes | Doctor's full name |
-| contact | No | Phone or email for link delivery |
-| years_experience | No | Numeric |
-| specialization | No | e.g. Cardiology |
-| achievements_text | No | Used as typographic art content |
-
----
-
-## CLI Reference
-
-```bash
-python cli.py create-admin --email EMAIL --password PASS  # Create admin user
-python cli.py import-csv doctors.csv                       # Bulk import from CSV
-python cli.py export-zip --status approved                 # Export certificates ZIP
-python cli.py run-worker                                   # Start Redis Queue worker
-python cli.py stats                                        # Show database statistics
-```
-
----
-
-## Art Pipeline (Core Engine)
-
-For each doctor submission, the background worker runs:
-
-1. **Preprocessing** — resize, normalize, grayscale conversion
-2. **Segmentation** — OpenCV silhouette / contour extraction from photo
-3. **Density Mapping** — darker areas → denser/smaller text, lighter areas → sparse/larger text
-4. **Text Pool Building** — weighted words from name, specialization, years, achievements
-5. **Word Placement** — iterative placement following density map within silhouette mask
-6. **Certificate Composition** — branding borders, header, caption block (Pillow)
-7. **High-Res Export** — 300 DPI PNG (2400×3200px), print-ready
+- **Doctor Upload Form**: `http://localhost:8000/upload` (automatically opens the active form)
+- **Direct Token Form**: `http://localhost:8000/upload/{token}`
+- **Admin Dashboard**: `http://localhost:8000/admin/doctors`
+- **Admin Login**: `http://localhost:8000/admin/login`
 
 ---
 
 ## Running Tests
 
+Run the full pytest suite:
+
 ```bash
-python -m pytest tests/ -v
+pytest tests/ -v
 ```
 
 ---
 
-## Production Deployment
+## CLI Commands
 
-1. Set `DATABASE_URL=postgresql://...` in `.env`
-2. Set `WORKER_MODE=rq` and ensure Redis is running
-3. Run `python cli.py run-worker` in a separate process (or systemd service)
-4. Deploy behind Nginx with TLS (Let's Encrypt)
-5. Use Cloudflare R2 by setting `USE_S3_STORAGE=True` with R2 credentials in `.env`
+```bash
+# Create admin user
+python cli.py create-admin --email admin@pictoart.com --password YourPassword
 
-> See `02_Technical_Architecture_Document.md` for full infrastructure and scaling notes.
+# Import doctor CSV
+python cli.py import-csv sample_doctors.csv
+
+# Run Redis Queue worker (when WORKER_MODE=rq)
+python cli.py run-worker
+
+# Export approved certificates to ZIP
+python cli.py export-zip --status approved
+
+# View system statistics
+python cli.py stats
+```
