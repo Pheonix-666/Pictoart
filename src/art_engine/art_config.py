@@ -1,51 +1,33 @@
 """
-art_config.py — Central configuration for PICTOART rendering & segmentation.
+art_config.py — Central configuration for PICTOART Sketch Portrait generation.
 
-Exposes all tunable parameters as named constants. No magic numbers buried in code.
+Exposes all tunable parameters for pencil sketch rendering, line work, shading,
+tonal depth, and composition.
 """
-from typing import Tuple, List
+from typing import Tuple
 
 # ── Canvas & Resolution ────────────────────────────────────────────────────
-OUTPUT_PORTRAIT_SIZE: Tuple[int, int] = (1600, 1600)  # Canvas for word art + face sketch
-OUTPUT_CERT_SIZE: Tuple[int, int]     = (2400, 3200)  # 300 DPI 8x10.6 inch certificate
+OUTPUT_PORTRAIT_SIZE: Tuple[int, int] = (1600, 1600)  # High-res square canvas for sketch portrait
+OUTPUT_CERT_SIZE: Tuple[int, int]     = (2400, 3200)  # 300 DPI 8x10.6 inch presentation layout
 
-# ── Segmentation & Masking ──────────────────────────────────────────────────
-FACE_FEATHER_RADIUS: int = 91          # Gaussian blur radius for face/body transition seam (must be odd)
-NATURAL_OVERLAP_ERODE: int = 21        # Erode kernel size for natural mask boundary overlap
+# ── Pencil Sketch Line-Art (Contour & Feature Extraction) ──────────────────
+LINE_BLUR_KERNEL: int = 5             # Bilateral pre-smoothing to prevent skin noise in lines
+DOG_SIGMA1: float = 0.8               # Difference of Gaussians fine sigma
+DOG_SIGMA2: float = 1.6               # Difference of Gaussians coarse sigma
+DOG_THRESHOLD: float = 0.05           # Sensitivity of pencil stroke edge detection
+PENCIL_LINE_WEIGHT: float = 0.45       # Weight of sharp pencil contours in final sketch
 
-# ── Word Art Density & Coverage ─────────────────────────────────────────────
-FILL_RATIO_TARGET_MIN: float = 0.70    # Target minimum ink coverage (70%)
-FILL_RATIO_TARGET_MAX: float = 0.85    # Target maximum ink coverage (85%)
-COLLISION_PADDING: int = 3             # Required padding (px) between placed word bounding boxes
+# ── Tonal Graphite Shading & Soft Dodge ────────────────────────────────────
+SKETCH_BLUR_KERNEL: int = 15          # Gaussian blur kernel for Color Dodge pencil shading (must be odd)
+SKETCH_GAMMA: float = 1.25            # Gamma adjustment (< 1.0 lighter, > 1.0 richer dark graphite tones)
+DODGE_WEIGHT: float = 0.60            # Balance of color dodge pencil highlights vs natural tone
+TONAL_WEIGHT: float = 0.40            # Natural shadow and feature preservation
 
-# ── Font Size & Scaling ─────────────────────────────────────────────────────
-MIN_FONT_SIZE: int = 9                 # Hard floor font size (pt) at 1600x1600 canvas
-MAX_FONT_SIZE: int = 38                # Maximum font size (pt) for highlight areas
+# ── Subject Masking & Boundary Fade ────────────────────────────────────────
+SILHOUETTE_FEATHER_PX: int = 15       # Soft edge feathering around the subject outline
+BOUNDARY_DARK_WEIGHT: float = 0.25    # Subtle pencil outline around outer silhouette
+NATURAL_OVERLAP_ERODE: int = 21        # Erode kernel size for mask boundary overlap
 
-# ── Rotation & Flow ─────────────────────────────────────────────────────────
-ROTATION_CLAMP_MIN: float = -25.0      # Minimum rotation angle (deg) along gradient flow
-ROTATION_CLAMP_MAX: float = 25.0       # Maximum rotation angle (deg) along gradient flow
-VERTICAL_TEXT_PROB: float = 0.08       # Probability of 90-deg vertical text along side seams/lapels
-
-# ── Dark Areas & Deep Shadows ───────────────────────────────────────────────
-DARK_AREA_THRESHOLD: float = 0.82      # Shading threshold (0.0 - 1.0) for solid fill / deep shadow folds
-
-# ── Color Palette & Accents ─────────────────────────────────────────────────
-PRIMARY_COLOR: Tuple[int, int, int] = (15, 25, 45)      # Deep Navy / Charcoal (~90-95% of words)
-ACCENT_COLOR: Tuple[int, int, int]  = (195, 155, 65)    # Gold / Amber (~5-10% of high-priority words)
-ACCENT_PERCENTAGE: float = 0.08                         # Fraction of words using accent color
-
-# ── Sketch Face Parameters ──────────────────────────────────────────────────
-SKETCH_BLUR_KERNEL: int = 9            # Smaller kernel = finer detail lines (eyes, hair, features)
-SKETCH_GAMMA: float = 1.35             # Gamma curve > 1.0 makes sketch darker and more detailed
-
-
-# ── Typography ──────────────────────────────────────────────────────────────
-FONT_PATHS: List[str] = [
-    "C:\\Windows\\Fonts\\arialbd.ttf",
-    "C:\\Windows\\Fonts\\arial.ttf",
-    "C:\\Windows\\Fonts\\georgiab.ttf",
-    "C:\\Windows\\Fonts\\tahoma.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    "/System/Library/Fonts/Helvetica.ttc"
-]
+# ── Paper Texture & Presentation ──────────────────────────────────────────
+PAPER_COLOR: Tuple[int, int, int] = (252, 252, 250)   # Warm fine-art sketch paper tone
+GRAPHITE_TINT: Tuple[int, int, int] = (30, 30, 34)    # Natural charcoal/graphite dark tone

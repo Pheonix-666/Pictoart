@@ -136,26 +136,37 @@ def extract_masks(
         largest_face = max(faces, key=lambda r: r[2] * r[3])
         fx, fy, fw, fh = largest_face
 
-        # Face skin & head ellipse (includes cheeks, jaw, forehead)
+        # Face skin & head ellipse
         center_x = fx + fw // 2
-        center_y = fy + int(fh * 0.48)
-        axes_w = int(fw * 0.72)
-        axes_h = int(fh * 0.85)
+        center_y = fy + int(fh * 0.45)
+        axes_w = int(fw * 0.80)
+        axes_h = int(fh * 1.05)
         cv2.ellipse(face_mask, (center_x, center_y), (axes_w, axes_h), 0, 0, 360, 255, -1)
+
+        # Include upper silhouette (hair, top of head, forehead) above chin level
+        chin_y = min(h, fy + int(fh * 1.10))
+        head_top_region = silhouette_mask.copy()
+        head_top_region[chin_y:, :] = 0
+        
+        # Mask out anything too far horizontally from face center
+        head_left = max(0, center_x - int(fw * 1.1))
+        head_right = min(w, center_x + int(fw * 1.1))
+        head_top_region[:, :head_left] = 0
+        head_top_region[:, head_right:] = 0
 
         # Hair detection heuristic
         hair_mask = _detect_hair_heuristic(gray_np, color_np, largest_face, silhouette_mask)
+        natural_mask = cv2.bitwise_or(face_mask, hair_mask)
+        natural_mask = cv2.bitwise_or(natural_mask, head_top_region)
     else:
         # Fallback: head oval in upper-center
         center_x = w // 2
         center_y = int(h * 0.30)
         cv2.ellipse(
             face_mask, (center_x, center_y),
-            (int(w * 0.25), int(h * 0.28)), 0, 0, 360, 255, -1
+            (int(w * 0.28), int(h * 0.35)), 0, 0, 360, 255, -1
         )
-
-    # ── Step 3: Natural Mask Union (Skin ∪ Hair ∪ Ears) ────────────────────
-    natural_mask = cv2.bitwise_or(face_mask, hair_mask)
+        natural_mask = face_mask
 
     # Morphological close/open to unify hair and skin into one contiguous region
     close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25))
