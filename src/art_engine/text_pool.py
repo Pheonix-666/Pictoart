@@ -14,15 +14,7 @@ import re
 from typing import Optional
 
 
-# ── Built-in filler vocabulary ───────────────────────────────────────────────
-# Medical / inspirational words that read naturally woven into a typographic suit.
-_BUILTIN_FILLER: list[str] = [
-    "HEALING", "EXCELLENCE", "CARE", "DEDICATION", "TRUST",
-    "COMPASSION", "SERVICE", "HEALTH", "WELLNESS", "HOPE",
-    "MEDICINE", "SCIENCE", "PRECISION", "EXPERTISE", "LEADERSHIP",
-    "INNOVATION", "COMMITMENT", "INTEGRITY", "VISION", "PROGRESS",
-    "QUALITY", "TREATMENT", "DIAGNOSIS", "PATIENT", "SURGERY",
-]
+from src.art_engine.words import BIG_WORDS, SHORT_WORDS
 
 
 # ── Internal helpers ─────────────────────────────────────────────────────────
@@ -123,14 +115,7 @@ def build_text_pool(
                 add(w, 5)
 
     # ── Years experience ──────────────────────────────────────────────────────
-    if years_experience is not None:
-        try:
-            yrs = int(years_experience)
-            add(f"{yrs} YEARS", 6)
-            add(f"{yrs}+ YEARS OF EXCELLENCE", 6)
-            add(f"{yrs} YEARS OF EXPERIENCE", 5)
-        except (TypeError, ValueError):
-            pass
+    # (Omitted from suit artwork per design requirements)
 
     # ── Achievements ──────────────────────────────────────────────────────────
     if achievements_text:
@@ -145,8 +130,11 @@ def build_text_pool(
                     if len(w) >= 4:
                         add(w, 3)
 
-    # ── Built-in filler ──────────────────────────────────────────────────────
-    for word in _BUILTIN_FILLER:
+    # ── Built-in word pools from words.py ────────────────────────────────────
+    for word in BIG_WORDS:
+        add(word, 3)
+
+    for word in SHORT_WORDS:
         add(word, 2)
 
     # ── Extra filler ─────────────────────────────────────────────────────────

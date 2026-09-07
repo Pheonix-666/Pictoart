@@ -22,6 +22,7 @@ from src.art_engine.art_config import (
     ACCENT_COLOR,
     ART_RULES,
 )
+from src.art_engine.words import BIG_WORDS, SHORT_WORDS
 
 # ── Font loading & caching ────────────────────────────────────────────────────
 _font_cache: dict[int, ImageFont.FreeTypeFont] = {}
@@ -138,17 +139,17 @@ def render_word_art_portrait(
     # Dark clothing mask from density map (> dark_density_cutoff) or collar lapels
     dark_clothing_mask = (density_map > dark_density_cutoff) | collar_lapel_mask
 
-    # Pool organization
+    # Pool organization: Big words for large spaces / headlines / subheadings, Short words for small spaces / body / fine
     all_phrases = [p for p, _ in text_pool]
-    large_headlines = [p for p in all_phrases if len(p) >= 15]
-    if not large_headlines:
-        large_headlines = all_phrases
-    med_phrases = [p for p in all_phrases if 8 <= len(p) <= 24]
-    if not med_phrases:
-        med_phrases = all_phrases
-    short_words = [p for p in all_phrases if len(p) < 12]
-    if not short_words:
-        short_words = ["CARE", "HEAL", "TRUST", "HOPE", "LIFE", "SOUL", "MIND", "CURE", "HONOR", "ETHICS", "PRECISION"]
+    # Filter out any leftover experience strings if any
+    all_phrases = [p for p in all_phrases if "YEAR" not in p and "EXPERIENCE" not in p]
+
+    # Large spaces (headlines & prominent blocks)
+    large_headlines = [p for p in all_phrases if len(p) >= 12] + BIG_WORDS
+    med_phrases = [p for p in all_phrases if 7 <= len(p) <= 20] + BIG_WORDS
+
+    # Small spaces (body & fine detail passes)
+    small_phrases = [p for p in all_phrases if len(p) <= 8 and " " not in p] + SHORT_WORDS
 
     # Hierarchy passes from rules
     hierarchy_rules = typo_cfg.get("font_hierarchy", [
@@ -161,8 +162,8 @@ def render_word_art_portrait(
     pool_map = {
         "headline": large_headlines,
         "subheading": med_phrases,
-        "body": short_words,
-        "fine": short_words,
+        "body": small_phrases,
+        "fine": small_phrases,
     }
 
     occupied = np.zeros((h, w), dtype=bool)
@@ -170,7 +171,7 @@ def render_word_art_portrait(
 
     for p_idx, p_config in enumerate(hierarchy_rules):
         tier = p_config.get("tier", "body")
-        pool = pool_map.get(tier, short_words)
+        pool = pool_map.get(tier, small_phrases)
         f_size = int(p_config.get("font_size", 12))
         font = get_font(f_size)
         step_y = int(p_config.get("step_y", 12))

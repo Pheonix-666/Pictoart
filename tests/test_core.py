@@ -25,7 +25,8 @@ class TestTextPool:
         phrases = [p for p, _ in pool]
         assert any("RAJESH" in ph or "KUMAR" in ph for ph in phrases)
         assert any("CARDIOLOGY" in ph for ph in phrases)
-        assert any("22" in ph for ph in phrases)
+        assert not any("YEARS" in ph for ph in phrases)
+        assert any("CARE" in ph or "HEALING" in ph for ph in phrases)
 
     def test_pool_without_optional_fields(self):
         from src.art_engine.text_pool import build_text_pool
