@@ -57,7 +57,7 @@ def get_upload_form(token: str, request: Request, db: Session = Depends(get_db))
         return templates.TemplateResponse(
             "error.html",
             {"request": request, "title": "Link Invalid",
-             "message": "The certificate upload link is invalid or has expired."},
+             "message": "The upload link is invalid or has expired."},
             status_code=404
         )
 
@@ -66,7 +66,7 @@ def get_upload_form(token: str, request: Request, db: Session = Depends(get_db))
         return templates.TemplateResponse(
             "confirmation.html",
             {"request": request, "doctor": doctor, "already_approved": True,
-             "message": "Your certificate has already been approved and finalised. Thank you!"}
+             "message": "Your portrait has already been approved and finalised. Thank you!"}
         )
 
     # Re-upload screen (TICKET-010)
@@ -88,9 +88,9 @@ async def submit_upload_form(
     token: str,
     request: Request,
     name: str = Form(...),
-    years_experience: int = Form(None),
-    specialization: str = Form(None),
-    achievements_text: str = Form(None),
+    state: str = Form(None),
+    district: str = Form(None),
+    place: str = Form(None),
     photo: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
@@ -99,7 +99,7 @@ async def submit_upload_form(
         raise HTTPException(status_code=404, detail="Invalid token")
 
     if doctor.status == DoctorStatus.APPROVED:
-        raise HTTPException(status_code=400, detail="Certificate already approved")
+        raise HTTPException(status_code=400, detail="Portrait already approved")
 
     # ── Input sanitization (TICKET-032) ─────────────────────────────────────
     clean_name = _sanitize_name(name)
@@ -109,8 +109,9 @@ async def submit_upload_form(
             {"request": request, "doctor": doctor, "error_message": "Name is required."},
             status_code=400
         )
-    clean_specialization = _sanitize_text(specialization, max_len=255)
-    clean_achievements   = _sanitize_text(achievements_text, max_len=500)
+    clean_state = _sanitize_text(state, max_len=255)
+    clean_district = _sanitize_text(district, max_len=255)
+    clean_place = _sanitize_text(place, max_len=255)
 
     # ── Photo validation ─────────────────────────────────────────────────────
     photo_bytes = await photo.read()
@@ -142,11 +143,11 @@ async def submit_upload_form(
         )
 
     # ── Persist doctor info ───────────────────────────────────────────────────
-    doctor.name              = clean_name
-    doctor.years_experience  = years_experience
-    doctor.specialization    = clean_specialization
-    doctor.achievements_text = clean_achievements
-    doctor.status            = DoctorStatus.SUBMITTED
+    doctor.name       = clean_name
+    doctor.state      = clean_state
+    doctor.district   = clean_district
+    doctor.place      = clean_place
+    doctor.status     = DoctorStatus.SUBMITTED
 
     saved_photo_path = storage.save_original_photo(photo_bytes, doctor.id, photo.filename or "photo.jpg")
 

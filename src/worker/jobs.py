@@ -11,13 +11,13 @@ from src.art_engine.sketch import render_pencil_sketch
 from src.art_engine.density import create_shading_and_gradient_map
 from src.art_engine.text_pool import build_text_pool
 from src.art_engine.renderer import render_word_art_portrait
-from src.art_engine.composer import composite_two_region_portrait, create_certificate_layout
+from src.art_engine.composer import composite_two_region_portrait
 from src.art_engine.art_config import OUTPUT_PORTRAIT_SIZE
 
 def process_doctor_art_job(doctor_id: int) -> bool:
     """
     Background worker job: processes original doctor photo into high-resolution
-    word-art portrait certificate with a sketch face and typographic word-art suit.
+    word-art portrait with a sketch face and typographic word-art suit.
     """
     db: Session = SessionLocal()
     try:
@@ -72,13 +72,13 @@ def process_doctor_art_job(doctor_id: int) -> bool:
         print("[Step 3/8] Generating shading map & Sobel gradient field...", flush=True)
         shading_map, grad_x, grad_y = create_shading_and_gradient_map(gray_np, clothing_mask)
 
-        # Pipeline Step 4: Build Text Pool from Doctor Biographical & Achievement Data
+        # Pipeline Step 4: Build Text Pool from Doctor Biographical & Location Data
         print("[Step 4/8] Building text pool...", flush=True)
         text_pool = build_text_pool(
             name=doctor.name,
-            years_experience=doctor.years_experience,
-            specialization=doctor.specialization,
-            achievements_text=doctor.achievements_text
+            state=doctor.state,
+            district=doctor.district,
+            place=doctor.place,
         )
 
         # Pipeline Step 5: Render Typographic Word Art Suit/Clothing Body

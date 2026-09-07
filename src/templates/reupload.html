@@ -8,7 +8,7 @@
     <div class="brand-header">
       <div style="font-size: 2.5rem; color: #f59e0b; margin-bottom: 0.5rem;">⚠️</div>
       <div class="brand-title">Photo Re-upload Requested</div>
-      <div class="brand-subtitle">We need a fresh or clearer photo to prepare your certificate artwork.</div>
+      <div class="brand-subtitle">We need a fresh or clearer photo to prepare your portrait artwork.</div>
     </div>
 
     {% if doctor.reupload_reason %}
@@ -21,14 +21,14 @@
 
     <form id="doctor-upload-form" action="/upload/{{ doctor.unique_token }}" method="POST" enctype="multipart/form-data">
       <input type="hidden" name="name" value="{{ doctor.name }}">
-      <input type="hidden" name="years_experience" value="{{ doctor.years_experience or '' }}">
-      <input type="hidden" name="specialization" value="{{ doctor.specialization or '' }}">
-      <input type="hidden" name="achievements_text" value="{{ doctor.achievements_text or '' }}">
+      <input type="hidden" name="state" value="{{ doctor.state or '' }}">
+      <input type="hidden" name="district" value="{{ doctor.district or '' }}">
+      <input type="hidden" name="place" value="{{ doctor.place or '' }}">
 
       <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1.25rem;">
-        <div style="font-weight: 600; font-size: 0.9rem; color: #334155;">Retained Details for Dr. {{ doctor.name }}:</div>
+        <div style="font-weight: 600; font-size: 0.9rem; color: #334155;">Details for Dr. {{ doctor.name }}:</div>
         <div style="font-size: 0.85rem; color: #64748b; margin-top: 0.25rem;">
-          Specialization: {{ doctor.specialization or 'N/A' }} | Experience: {{ doctor.years_experience or 'N/A' }} Years
+          Location: {{ [doctor.place, doctor.district, doctor.state] | select | join(', ') or 'N/A' }}
         </div>
       </div>
 

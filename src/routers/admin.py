@@ -150,10 +150,9 @@ async def process_csv_import(
             continue
 
         contact = row.get("contact") or row.get("Contact") or row.get("phone") or row.get("email")
-        years_exp = row.get("years_experience") or row.get("experience")
-        years_exp_val = int(years_exp) if years_exp and years_exp.strip().isdigit() else None
-        specialization = row.get("specialization") or row.get("speciality")
-        achievements = row.get("achievements_text") or row.get("achievements")
+        state = row.get("state") or row.get("State")
+        district = row.get("district") or row.get("District")
+        place = row.get("place") or row.get("Place") or row.get("city") or row.get("City")
 
         token = secrets.token_urlsafe(24) # Secure 128-bit+ unique token
 
@@ -161,9 +160,9 @@ async def process_csv_import(
             name=_sanitize(name, 255) or name.strip()[:255],
             contact=_sanitize(contact, 255) if contact else None,
             unique_token=token,
-            years_experience=years_exp_val,
-            specialization=_sanitize(specialization, 255) if specialization else None,
-            achievements_text=_sanitize(achievements, 500) if achievements else None,
+            state=_sanitize(state, 255) if state else None,
+            district=_sanitize(district, 255) if district else None,
+            place=_sanitize(place, 255) if place else None,
             status=DoctorStatus.NOT_SUBMITTED
         )
         db.add(doctor)
@@ -235,7 +234,7 @@ def approve_doctor_art(doctor_id: int, db: Session = Depends(get_db), admin: Adm
     doctor.reupload_reason = None
     db.commit()
 
-    log_audit_action(db, admin, "approve", target_doctor_id=doctor_id, details=f"Approved certificate for Dr. {doctor.name}")
+    log_audit_action(db, admin, "approve", target_doctor_id=doctor_id, details=f"Approved portrait for Dr. {doctor.name}")
     return RedirectResponse(url=f"/admin/doctor/{doctor_id}", status_code=303)
 
 @router.post("/doctor/{doctor_id}/reject")

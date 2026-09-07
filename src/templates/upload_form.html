@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Certificate Photo Submission - Dr. {{ doctor.name }}{% endblock %}
+{% block title %}Photo Submission - Dr. {{ doctor.name }}{% endblock %}
 
 {% block content %}
 <div class="upload-page-bg">
   <div class="card">
     <div class="brand-header">
       <div style="font-size: 2.2rem; font-weight: 800; color: #1e1b4b; margin-bottom: 0.25rem;">✨ PICTOART</div>
-      <div class="brand-title">Doctor Honor Certificate</div>
-      <div class="brand-subtitle">Please submit your photo and details for your customized typographic portrait certificate.</div>
+      <div class="brand-title">Doctor Portrait Submission</div>
+      <div class="brand-subtitle">Please submit your photo and location details for your customized typographic portrait.</div>
     </div>
 
     {% if error_message %}
@@ -19,24 +19,27 @@
 
     <form id="doctor-upload-form" action="/upload/{{ doctor.unique_token }}" method="POST" enctype="multipart/form-data">
       <div class="form-group">
-        <label class="form-label" for="name">Full Name (as it will appear on certificate) *</label>
-        <input type="text" id="name" name="name" class="form-input" value="{{ doctor.name }}" required>
+        <label class="form-label" for="name">Full Name *</label>
+        <input type="text" id="name" name="name" class="form-input" value="{% if doctor.name and doctor.name != 'Pending' %}{{ doctor.name }}{% endif %}" placeholder="e.g. Dr. Jane Doe" required>
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="years_experience">Years of Experience</label>
-        <input type="number" id="years_experience" name="years_experience" class="form-input" placeholder="e.g. 15" value="{{ doctor.years_experience or '' }}" min="0" max="70">
+        <label class="form-label" for="state">State *</label>
+        <select id="state" name="state" class="form-input" required data-selected="{{ doctor.state or '' }}">
+          <option value="">-- Select Indian State / UT --</option>
+        </select>
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="specialization">Specialization / Department</label>
-        <input type="text" id="specialization" name="specialization" class="form-input" placeholder="e.g. Cardiology, Internal Medicine" value="{{ doctor.specialization or '' }}">
+        <label class="form-label" for="district">District *</label>
+        <select id="district" name="district" class="form-input" required data-selected="{{ doctor.district or '' }}" disabled>
+          <option value="">-- Select District --</option>
+        </select>
       </div>
 
       <div class="form-group">
-        <label class="form-label" for="achievements_text">Key Achievements & Recognitions</label>
-        <textarea id="achievements_text" name="achievements_text" class="form-textarea" placeholder="e.g. 10,000+ Patients Treated, Gold Medalist, Fellow of ACC" maxlength="500">{{ doctor.achievements_text or '' }}</textarea>
-        <div class="helper-text">These achievements will be formed into your typographic portrait art! (Max 500 characters)</div>
+        <label class="form-label" for="place">Place / City *</label>
+        <input type="text" id="place" name="place" class="form-input" placeholder="e.g. Bandra, Connaught Place, Whitefield" value="{{ doctor.place or '' }}" required>
       </div>
 
       <div class="form-group">
@@ -53,7 +56,7 @@
       </div>
 
       <button type="submit" class="btn btn-primary btn-full" style="margin-top: 1rem;">
-        Submit Photo & Generate Certificate →
+        Submit Photo & Generate Portrait →
       </button>
     </form>
   </div>
@@ -61,5 +64,64 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="/static/js/upload.js"></script>
+<script src="/static/js/locations_india.js?v=4"></script>
+<script src="/static/js/upload.js?v=4"></script>
+<script>
+  // Instant fallback initialization for state & district dropdowns
+  (function () {
+    function setupDropdowns() {
+      var stateEl = document.getElementById("state");
+      var distEl = document.getElementById("district");
+      var locs = window.INDIA_LOCATIONS || (typeof INDIA_LOCATIONS !== "undefined" ? INDIA_LOCATIONS : null);
+
+      if (!stateEl || !distEl || !locs) return;
+
+      var selState = stateEl.getAttribute("data-selected") || "";
+      var selDist = distEl.getAttribute("data-selected") || "";
+
+      // Populate states if empty
+      if (stateEl.options.length <= 1) {
+        var states = Object.keys(locs).sort();
+        states.forEach(function (st) {
+          var opt = document.createElement("option");
+          opt.value = st;
+          opt.textContent = st;
+          if (st === selState) opt.selected = true;
+          stateEl.appendChild(opt);
+        });
+      }
+
+      function updateDistricts(stName, distVal) {
+        distEl.innerHTML = '<option value="">-- Select District --</option>';
+        if (stName && locs[stName]) {
+          var dList = locs[stName].slice().sort();
+          dList.forEach(function (d) {
+            var opt = document.createElement("option");
+            opt.value = d;
+            opt.textContent = d;
+            if (d === distVal) opt.selected = true;
+            distEl.appendChild(opt);
+          });
+          distEl.disabled = false;
+        } else {
+          distEl.disabled = true;
+        }
+      }
+
+      if (selState) {
+        updateDistricts(selState, selDist);
+      }
+
+      stateEl.onchange = function () {
+        updateDistricts(this.value, "");
+      };
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", setupDropdowns);
+    } else {
+      setupDropdowns();
+    }
+  })();
+</script>
 {% endblock %}

@@ -6,6 +6,9 @@ from src.models import DoctorStatus, AdminRole
 class DoctorBase(BaseModel):
     name: str
     contact: Optional[str] = None
+    state: Optional[str] = None
+    district: Optional[str] = None
+    place: Optional[str] = None
     years_experience: Optional[int] = None
     specialization: Optional[str] = None
     achievements_text: Optional[str] = None
@@ -15,9 +18,9 @@ class DoctorCreate(DoctorBase):
 
 class DoctorSubmissionUpdate(BaseModel):
     name: str
-    years_experience: Optional[int] = None
-    specialization: Optional[str] = None
-    achievements_text: Optional[str] = None
+    state: Optional[str] = None
+    district: Optional[str] = None
+    place: Optional[str] = None
 
 class DoctorOut(DoctorBase):
     id: int
@@ -45,6 +48,9 @@ class SubmissionOut(BaseModel):
 class CSVImportRow(BaseModel):
     name: str
     contact: Optional[str] = None
+    state: Optional[str] = None
+    district: Optional[str] = None
+    place: Optional[str] = None
     years_experience: Optional[int] = None
     specialization: Optional[str] = None
     achievements_text: Optional[str] = None

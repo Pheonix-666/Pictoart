@@ -1,10 +1,9 @@
 """
 text_pool.py — Weighted word/phrase pool builder for PICTOART typographic renderer.
 
-Public API (matched to call sites in jobs.py and test_core.py):
+Public API:
 
-    build_text_pool(name, specialization=None, years_experience=None,
-                    achievements_text=None, extra_filler=None)
+    build_text_pool(name, state=None, district=None, place=None, extra_filler=None)
         -> list[tuple[str, int]]
 
 Every entry is (UPPERCASE_PHRASE, weight). Higher weight = word appears more
@@ -12,7 +11,6 @@ often and at larger sizes in the rendered suit region.
 """
 import re
 from typing import Optional
-
 
 from src.art_engine.words import BIG_WORDS, SHORT_WORDS
 
@@ -24,25 +22,18 @@ def _clean_upper(text: str) -> str:
     return text.strip().upper()
 
 
-def _split_achievements(achievements_text: str) -> list[str]:
-    """
-    Split a raw achievement string (comma / semicolon / pipe / newline
-    delimited) into individual phrase tokens.
-    """
-    if not achievements_text or not achievements_text.strip():
-        return []
-    parts = re.split(r"[,;\|\n]+", achievements_text)
-    return [p.strip().upper() for p in parts if p.strip()]
-
-
 # ── Public API ───────────────────────────────────────────────────────────────
 
 def build_text_pool(
     name: str,
+    state: Optional[str] = None,
+    district: Optional[str] = None,
+    place: Optional[str] = None,
+    extra_filler: Optional[list] = None,
+    # Legacy params kept for backward-compat but ignored
     specialization: Optional[str] = None,
     years_experience: Optional[int] = None,
     achievements_text: Optional[str] = None,
-    extra_filler: Optional[list] = None,
 ) -> list:
     """
     Build a weighted word pool for typographic portrait rendering.
@@ -55,35 +46,31 @@ def build_text_pool(
 
     Weighting scheme
     ----------------
-    Full "DR. NAME" string              weight 10  (main identity phrase)
+    "DR. NAME" full string              weight 10  (main identity phrase)
     Name without prefix                 weight  9
-    Individual first / last name words  weight  7  (appear at small sizes too)
-    Specialization                      weight  8
-    Specialization individual words     weight  5  (multi-word specs)
-    "{N} YEARS"                         weight  6
-    "{N}+ YEARS OF EXCELLENCE"          weight  6
-    "{N} YEARS OF EXPERIENCE"           weight  5
-    Each achievement phrase             weight  4
-    Words from long achievement phrases weight  3
-    Built-in filler words               weight  2
+    Individual first / last name words  weight  7
+    State name                          weight  6
+    District name                       weight  5
+    Place / city name                   weight  5
+    Individual location words           weight  4
+    Built-in BIG_WORDS                  weight  3
+    Built-in SHORT_WORDS                weight  2
     Extra filler words                  weight  2
     """
-    # phrase -> weight mapping; keeps the highest weight seen
     pool: dict[str, int] = {}
 
     def add(phrase: str, weight: int) -> None:
-        """Add (or update to max weight) a phrase into the pool."""
         phrase = _clean_upper(phrase)
         if not phrase:
             return
         if phrase not in pool or pool[phrase] < weight:
             pool[phrase] = weight
 
-    # ── Name ─────────────────────────────────────────────────────────────────
+    # ── Doctor Name ───────────────────────────────────────────────────────────
     if name and name.strip():
         clean = _clean_upper(name)
 
-        # Normalise DR. prefix
+        # Normalise "DR." prefix
         no_prefix = re.sub(r"^DR\.?\s*", "", clean).strip()
 
         if clean.startswith("DR.") or clean.startswith("DR "):
@@ -91,44 +78,41 @@ def build_text_pool(
         else:
             dr_name = f"DR. {clean}"
 
-        add(dr_name, 10)        # "DR. RAJESH KUMAR"  — highest
-        add(no_prefix, 9)       # "RAJESH KUMAR"
-        add(f"DR. {no_prefix}", 10)  # insurance: always have the prefixed form
+        add(dr_name, 10)            # "DR. RAJESH KUMAR"  — highest
+        add(no_prefix, 9)           # "RAJESH KUMAR"
+        add(f"DR. {no_prefix}", 10) # insurance: always have the prefixed form
 
-        # Individual name tokens (first name, last name) at medium weight so
-        # they scatter at smaller font sizes across the portrait
+        # Individual name tokens scatter at smaller sizes
         tokens = re.split(r"\s+", no_prefix)
         for token in tokens:
             token = token.strip(".,")
-            if len(token) >= 3:  # skip bare initials like "P."
+            if len(token) >= 3:     # skip bare initials like "P."
                 add(token, 7)
 
-    # ── Specialization ────────────────────────────────────────────────────────
-    if specialization and specialization.strip():
-        spec = _clean_upper(specialization)
-        add(spec, 8)
-
-        # Sub-words of multi-word specializations (e.g. "INTERVENTIONAL CARDIOLOGY")
-        spec_words = spec.split()
-        for w in spec_words:
+    # ── Location — State ──────────────────────────────────────────────────────
+    if state and state.strip():
+        st = _clean_upper(state)
+        add(st, 6)
+        # Individual words in multi-word state names (e.g. "ANDHRA PRADESH")
+        for w in st.split():
             if len(w) >= 4:
-                add(w, 5)
+                add(w, 4)
 
-    # ── Years experience ──────────────────────────────────────────────────────
-    # (Omitted from suit artwork per design requirements)
+    # ── Location — District ───────────────────────────────────────────────────
+    if district and district.strip():
+        dist = _clean_upper(district)
+        add(dist, 5)
+        for w in dist.split():
+            if len(w) >= 4:
+                add(w, 4)
 
-    # ── Achievements ──────────────────────────────────────────────────────────
-    if achievements_text:
-        for phrase in _split_achievements(achievements_text):
-            add(phrase, 4)
-            # For long phrases also add individual words so they can appear at
-            # small sizes without crowding
-            words = phrase.split()
-            if len(words) > 3:
-                for w in words:
-                    w = w.strip(".,+")
-                    if len(w) >= 4:
-                        add(w, 3)
+    # ── Location — Place / City ───────────────────────────────────────────────
+    if place and place.strip():
+        pl = _clean_upper(place)
+        add(pl, 5)
+        for w in pl.split():
+            if len(w) >= 4:
+                add(w, 4)
 
     # ── Built-in word pools from words.py ────────────────────────────────────
     for word in BIG_WORDS:

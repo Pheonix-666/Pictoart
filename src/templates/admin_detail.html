@@ -41,11 +41,8 @@
       <h1 style="color: #0f172a; font-size: 1.75rem; margin-bottom: 0.25rem;">Dr. {{ doctor.name }}</h1>
       <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
         <span class="badge badge-{{ doctor.status.value }}">{{ doctor.status.value.replace('_', ' ') }}</span>
-        {% if doctor.specialization %}
-          <span style="color: #64748b; font-size: 0.9rem;">{{ doctor.specialization }}</span>
-        {% endif %}
-        {% if doctor.years_experience %}
-          <span style="color: #64748b; font-size: 0.9rem;">{{ doctor.years_experience }}+ Years Experience</span>
+        {% if doctor.place or doctor.district or doctor.state %}
+          <span style="color: #64748b; font-size: 0.9rem;">📍 {{ [doctor.place, doctor.district, doctor.state] | select | join(', ') }}</span>
         {% endif %}
       </div>
       {% if doctor.contact %}
@@ -57,8 +54,8 @@
     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
       {% if doctor.status.value == 'ready_for_review' %}
         <form action="/admin/doctor/{{ doctor.id }}/approve" method="POST" style="display:inline;">
-          <button type="submit" class="btn btn-success" onclick="return confirm('Approve certificate for Dr. {{ doctor.name }}?')">
-            ✓ Approve Certificate
+          <button type="submit" class="btn btn-success" onclick="return confirm('Approve portrait for Dr. {{ doctor.name }}?')">
+            ✓ Approve Portrait
           </button>
         </form>
       {% endif %}
@@ -85,7 +82,7 @@
       {% endif %}
     </div>
     <div>
-      <div style="font-weight: 700; font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Generated Word-Art Certificate</div>
+      <div style="font-weight: 700; font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Generated Word-Art Portrait</div>
       {% if submission.generated_art_path %}
         <img class="preview-img" src="/admin/preview/art/{{ doctor.id }}" alt="Generated Art for Dr. {{ doctor.name }}" loading="lazy">
       {% else %}
@@ -104,11 +101,11 @@
   </div>
   {% endif %}
 
-  <!-- Achievements & Details -->
-  {% if doctor.achievements_text %}
+  <!-- Location Details -->
+  {% if doctor.state or doctor.district or doctor.place %}
   <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;">
-    <div style="font-weight: 700; font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Achievements & Bio Text Used for Portrait</div>
-    <p style="color: #334155; white-space: pre-wrap;">{{ doctor.achievements_text }}</p>
+    <div style="font-weight: 700; font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">Doctor Location</div>
+    <p style="color: #334155; margin: 0;">State: {{ doctor.state or 'N/A' }} | District: {{ doctor.district or 'N/A' }} | Place: {{ doctor.place or 'N/A' }}</p>
   </div>
   {% endif %}
 

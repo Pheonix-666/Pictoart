@@ -105,6 +105,18 @@ body {
   font-size: 0.95rem;
   transition: all 0.2s ease;
   background: #ffffff;
+  color: #1e293b;
+}
+
+select.form-input, select.form-select {
+  cursor: pointer;
+}
+
+select.form-input:disabled, select.form-select:disabled {
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+  border-color: #e2e8f0;
 }
 
 .form-input:focus, .form-textarea:focus, .form-select:focus {
