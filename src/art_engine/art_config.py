@@ -104,7 +104,7 @@ ACCENT_COLOR: Tuple[int, int, int]  = (20, 20, 25)      # Charcoal accent
 ACCENT_PERCENTAGE: float = 0.05                         # Accent ratio
 
 # ── Sketch Face Parameters ──────────────────────────────────────────────────
-SKETCH_BLUR_KERNEL: int = 9            # Smaller kernel = finer detail lines
+SKETCH_BLUR_KERNEL: int = 21           # Sized for 1600 px canvas — wider kernel = richer dodge effect
 SKETCH_GAMMA: float = 1.35             # Gamma curve
 
 # ── Typography Fonts ────────────────────────────────────────────────────────

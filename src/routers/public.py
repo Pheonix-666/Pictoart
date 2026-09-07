@@ -36,6 +36,18 @@ def _sanitize_name(value: str, max_len: int = 255) -> str:
     return clean[:max_len]
 
 
+# ── Self-service entry point — generates a fresh token and redirects ───────────
+
+@router.get("/upload/", response_class=HTMLResponse)
+def create_upload_session(request: Request, db: Session = Depends(get_db)):
+    """Visit /upload/ to get a brand-new personal upload link."""
+    token = uuid.uuid4().hex
+    doctor = Doctor(name="Pending", unique_token=token)
+    db.add(doctor)
+    db.commit()
+    return RedirectResponse(url=f"/upload/{token}", status_code=303)
+
+
 # ── Doctor upload form (GET) ───────────────────────────────────────────────────
 
 @router.get("/upload/{token}", response_class=HTMLResponse)

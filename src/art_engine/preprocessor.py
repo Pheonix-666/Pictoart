@@ -68,8 +68,13 @@ def preprocess_image(image_bytes: bytes, target_size: tuple[int, int] = (1200, 1
     
     color_np = np.array(pil_img)
     gray_np = cv2.cvtColor(color_np, cv2.COLOR_RGB2GRAY)
-    
-    # Histogram equalization for good contrast distribution
-    gray_np = cv2.equalizeHist(gray_np)
-    
+
+    # CLAHE: adaptive local contrast — far less blocky than equalizeHist
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    gray_np = clahe.apply(gray_np)
+
+    # Unsharp mask: recover edge crispness lost during LANCZOS resize
+    blur = cv2.GaussianBlur(gray_np, (0, 0), sigmaX=1.5)
+    gray_np = cv2.addWeighted(gray_np, 1.4, blur, -0.4, 0)
+
     return gray_np, color_np, pil_img

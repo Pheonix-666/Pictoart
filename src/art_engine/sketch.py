@@ -61,8 +61,8 @@ def render_pencil_sketch(
     shadow_range = tone_cfg.get("shadow", [0.18, 0.40])
     dark_cutoff = float(tone_cfg.get("deep_dark", 0.18))
 
-    # 1. Edge-preserving filtering
-    smooth = cv2.bilateralFilter(gray_np, d=7, sigmaColor=35, sigmaSpace=35)
+    # 1. Edge-preserving filtering (stronger at 1600 px — removes sensor noise while keeping anatomical planes)
+    smooth = cv2.bilateralFilter(gray_np, d=9, sigmaColor=55, sigmaSpace=55)
 
     # 2. Crisp anatomical contours
     edges_canny = cv2.Canny(smooth, canny_l, canny_h)
@@ -129,6 +129,13 @@ def render_pencil_sketch(
         blended_f = np.clip(blended.astype(np.float32) + grain, 0, 255).astype(np.uint8)
         # Keep pure highlights clean
         blended = np.where(blended > 245, blended, blended_f)
+
+    # Apply gamma correction for proper tonal depth (SKETCH_GAMMA was configured but never applied)
+    gamma_lut = np.array(
+        [min(255, int(255.0 * (i / 255.0) ** SKETCH_GAMMA)) for i in range(256)],
+        dtype=np.uint8
+    )
+    blended = cv2.LUT(blended, gamma_lut)
 
     # Burn in crisp pencil edge lines
     blended[edges_canny > 0] = np.minimum(blended[edges_canny > 0], 18)

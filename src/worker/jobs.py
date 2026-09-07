@@ -62,7 +62,7 @@ def process_doctor_art_job(doctor_id: int) -> bool:
 
         # Pipeline Step 1: Preprocessing
         print("[Step 1/8] Preprocessing photo...", flush=True)
-        gray_np, color_np, resized_pil = preprocess_image(photo_bytes, target_size=(1200, 1200))
+        gray_np, color_np, resized_pil = preprocess_image(photo_bytes, target_size=(1600, 1600))
 
         # Pipeline Step 2: Two-Region Segmentation (Silhouette, Natural [face+hair], Clothing)
         print("[Step 2/8] Running segmentation (rembg / face detection)...", flush=True)
