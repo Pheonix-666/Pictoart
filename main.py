@@ -22,9 +22,9 @@ def create_database_tables():
     """Create database tables if they do not already exist."""
     try:
         Base.metadata.create_all(bind=engine)
-        print("[OK] Database tables initialized")
+        print("✓ Database tables initialized")
     except Exception as e:
-        print(f"[ERROR] Database initialization failed: {e}")
+        print(f"✗ Database initialization failed: {e}")
         raise
 
 
@@ -48,7 +48,8 @@ limiter = Limiter(
 app = FastAPI(
     title=settings.APP_NAME,
     description=(
-        "PICTOART — Doctor Pencil Sketch Portrait Generator."
+        "Doctor Word-Art Certificate Generator — "
+        "automated typographic portrait system."
     ),
     version="1.0.0",
 

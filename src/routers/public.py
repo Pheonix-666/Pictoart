@@ -1,7 +1,6 @@
 import html
 import os
 import re
-import secrets
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -39,45 +38,6 @@ def _sanitize_name(value: str, max_len: int = 255) -> str:
 
 # ── Doctor upload form (GET) ───────────────────────────────────────────────────
 
-@router.get("/upload", response_class=HTMLResponse)
-@router.get("/upload/", response_class=HTMLResponse)
-def redirect_bare_upload_url(request: Request, db: Session = Depends(get_db)):
-    """
-    Handles visits to bare /upload or /upload/ by redirecting to a valid /upload/{token}.
-    1. Checks if a previous doctor_token cookie exists.
-    2. Otherwise selects an existing unsubmitted doctor from the database.
-    3. If none available, automatically creates a new test doctor record.
-    """
-    token = request.cookies.get("doctor_token")
-    if token:
-        doctor = db.query(Doctor).filter(Doctor.unique_token == token).first()
-        if doctor and doctor.status != DoctorStatus.APPROVED:
-            return RedirectResponse(url=f"/upload/{token}", status_code=307)
-
-    # Find the next available unsubmitted doctor
-    doctor = db.query(Doctor).filter(
-        Doctor.status.in_([DoctorStatus.NOT_SUBMITTED, DoctorStatus.NEEDS_REUPLOAD])
-    ).first()
-
-    if not doctor:
-        # Generate a new doctor entry so the user can immediately submit
-        token = secrets.token_urlsafe(24)
-        doctor = Doctor(
-            name="Doctor",
-            unique_token=token,
-            status=DoctorStatus.NOT_SUBMITTED
-        )
-        db.add(doctor)
-        db.commit()
-        db.refresh(doctor)
-    else:
-        token = doctor.unique_token
-
-    response = RedirectResponse(url=f"/upload/{token}", status_code=307)
-    response.set_cookie(key="doctor_token", value=token, max_age=30 * 24 * 3600, httponly=True)
-    return response
-
-
 @router.get("/upload/{token}", response_class=HTMLResponse)
 def get_upload_form(token: str, request: Request, db: Session = Depends(get_db)):
     doctor = db.query(Doctor).filter(Doctor.unique_token == token).first()
@@ -99,17 +59,13 @@ def get_upload_form(token: str, request: Request, db: Session = Depends(get_db))
 
     # Re-upload screen (TICKET-010)
     if doctor.status == DoctorStatus.NEEDS_REUPLOAD:
-        response = templates.TemplateResponse("reupload.html", {"request": request, "doctor": doctor})
-        response.set_cookie(key="doctor_token", value=token, max_age=30 * 24 * 3600, httponly=True)
-        return response
+        return templates.TemplateResponse("reupload.html", {"request": request, "doctor": doctor})
 
     # In-progress — skip re-submission
     if doctor.status in [DoctorStatus.SUBMITTED, DoctorStatus.PROCESSING, DoctorStatus.READY_FOR_REVIEW]:
         return RedirectResponse(url=f"/upload/{token}/confirmation", status_code=303)
 
-    response = templates.TemplateResponse("upload_form.html", {"request": request, "doctor": doctor})
-    response.set_cookie(key="doctor_token", value=token, max_age=30 * 24 * 3600, httponly=True)
-    return response
+    return templates.TemplateResponse("upload_form.html", {"request": request, "doctor": doctor})
 
 
 # ── Doctor upload form (POST) — rate limited to 5 req/min per IP ──────────────

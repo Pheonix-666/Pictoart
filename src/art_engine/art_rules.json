@@ -1,0 +1,109 @@
+{
+  "version": "2.0.0",
+  "name": "Reference Sample Calibrated Rule Set",
+  "canvas": {
+    "default_width": 2048,
+    "default_height": 2048,
+    "background_mode": "transparent",
+    "dpi": 300
+  },
+  "segmentation": {
+    "neck_v_aspect_ratio": 0.65,
+    "neck_v_dilation_px": 28,
+    "skin_ycrcb": {
+      "cb_min": 77,
+      "cb_max": 127,
+      "cr_min": 133,
+      "cr_max": 173
+    },
+    "skin_hsv": {
+      "h_min": 0,
+      "h_max": 25,
+      "s_min": 25,
+      "s_max": 175
+    }
+  },
+  "hatching": {
+    "angles_deg": [-35.0, 52.0, -75.0, 15.0],
+    "line_spacing_px": 4,
+    "line_thickness_px": 1,
+    "tone_cutoffs": {
+      "light": [0.65, 0.82],
+      "mid": [0.40, 0.65],
+      "shadow": [0.18, 0.40],
+      "deep_dark": 0.18
+    },
+    "edge_preservation": {
+      "canny_low": 28,
+      "canny_high": 92,
+      "dog_kernel_1": 3,
+      "dog_kernel_2": 7,
+      "dog_threshold": 5
+    },
+    "graphite_texture": {
+      "dodge_weight": 0.28,
+      "hatch_weight": 0.72,
+      "paper_tooth_noise": 0.05
+    }
+  },
+  "typography": {
+    "font_hierarchy": [
+      {
+        "tier": "headline",
+        "font_size": 28,
+        "step_y": 26,
+        "step_x": 16,
+        "min_occupancy": 0.80,
+        "vertical_prob": 0.12,
+        "max_overlap": 0.20
+      },
+      {
+        "tier": "subheading",
+        "font_size": 18,
+        "step_y": 16,
+        "step_x": 12,
+        "min_occupancy": 0.76,
+        "vertical_prob": 0.22,
+        "max_overlap": 0.30
+      },
+      {
+        "tier": "body",
+        "font_size": 12,
+        "step_y": 11,
+        "step_x": 8,
+        "min_occupancy": 0.70,
+        "vertical_prob": 0.32,
+        "max_overlap": 0.45
+      },
+      {
+        "tier": "fine",
+        "font_size": 8,
+        "step_y": 7,
+        "step_x": 5,
+        "min_occupancy": 0.62,
+        "vertical_prob": 0.38,
+        "max_overlap": 0.50
+      }
+    ],
+    "tone_inversion": {
+      "shading_density_cutoff": 0.60,
+      "collar_proximity_px": 55,
+      "collar_depth_px": 260,
+      "inverted_block_threshold": 0.35,
+      "box_fill_rgba": [18, 18, 18, 255],
+      "text_inverted_rgba": [255, 255, 255, 255],
+      "text_standard_rgba": [15, 15, 15, 255]
+    },
+    "garment_seams": {
+      "blur_ksize": 13,
+      "canny_low": 50,
+      "canny_high": 140,
+      "min_component_area": 35,
+      "line_rgba": [15, 15, 15, 255]
+    }
+  },
+  "composite": {
+    "feather_radius": 91,
+    "dilation_kernel_size": 31
+  }
+}

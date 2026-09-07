@@ -119,54 +119,70 @@ def extract_masks(
     silhouette_mask = cv2.GaussianBlur(silhouette_mask, (15, 15), 0)
     _, silhouette_mask = cv2.threshold(silhouette_mask, 100, 255, cv2.THRESH_BINARY)
 
-    # ── Step 2: Face & Hair detection (Natural Mask) ───────────────────────
-    face_mask = np.zeros((h, w), dtype=np.uint8)
-    hair_mask = np.zeros((h, w), dtype=np.uint8)
+    # ── Step 2: Face, Neck & Hair detection (Natural Mask) ───────────────────
+    hsv = cv2.cvtColor(color_np, cv2.COLOR_RGB2HSV)
+    ycrcb = cv2.cvtColor(color_np, cv2.COLOR_RGB2YCrCb)
+    skin_ycrcb = cv2.inRange(ycrcb, np.array([0, 133, 77]), np.array([255, 173, 127]))
+    skin_hsv = cv2.inRange(hsv, np.array([0, 15, 55]), np.array([28, 175, 255]))
+    skin = cv2.bitwise_and(skin_ycrcb, skin_hsv)
+    skin = cv2.bitwise_and(skin, silhouette_mask)
+    skin_close_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25))
+    skin_filled = cv2.morphologyEx(skin, cv2.MORPH_CLOSE, skin_close_k)
 
-    faces = []
-    if hasattr(cv2, 'CascadeClassifier'):
-        face_cascade = cv2.CascadeClassifier(
-            cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-        )
-        faces = face_cascade.detectMultiScale(
-            gray_np, scaleFactor=1.1, minNeighbors=3, minSize=(60, 60)
-        )
+    skin_px = np.count_nonzero(skin_filled)
+    sil_px = max(1, np.count_nonzero(silhouette_mask))
 
-    if len(faces) > 0:
-        largest_face = max(faces, key=lambda r: r[2] * r[3])
-        fx, fy, fw, fh = largest_face
+    if skin_px >= sil_px * 0.05:
+        # Reliable skin segmentation capturing face + natural neck down into collar
+        skin_pts = np.argwhere(skin_filled > 0)
+        min_y = skin_pts[:, 0].min()
+        max_y = skin_pts[:, 0].max()
+        min_x = skin_pts[:, 1].min()
+        max_x = skin_pts[:, 1].max()
+        center_x = (min_x + max_x) // 2
+        span_w = max_x - min_x
 
-        # Face skin & head ellipse
-        center_x = fx + fw // 2
-        center_y = fy + int(fh * 0.45)
-        axes_w = int(fw * 0.80)
-        axes_h = int(fh * 1.05)
-        cv2.ellipse(face_mask, (center_x, center_y), (axes_w, axes_h), 0, 0, 360, 255, -1)
-
-        # Include upper silhouette (hair, top of head, forehead) above chin level
-        chin_y = min(h, fy + int(fh * 1.10))
-        head_top_region = silhouette_mask.copy()
-        head_top_region[chin_y:, :] = 0
-        
-        # Mask out anything too far horizontally from face center
-        head_left = max(0, center_x - int(fw * 1.1))
-        head_right = min(w, center_x + int(fw * 1.1))
-        head_top_region[:, :head_left] = 0
-        head_top_region[:, head_right:] = 0
-
-        # Hair detection heuristic
-        hair_mask = _detect_hair_heuristic(gray_np, color_np, largest_face, silhouette_mask)
-        natural_mask = cv2.bitwise_or(face_mask, hair_mask)
-        natural_mask = cv2.bitwise_or(natural_mask, head_top_region)
+        # Hair is above the eyes/forehead in the silhouette
+        chin_y = int(min_y + (max_y - min_y) * 0.55)
+        head_sil = silhouette_mask.copy()
+        head_sil[chin_y:, :] = 0
+        head_left = max(0, center_x - int(span_w * 0.95))
+        head_right = min(w, center_x + int(span_w * 0.95))
+        head_sil[:, :head_left] = 0
+        head_sil[:, head_right:] = 0
+        natural_mask = cv2.bitwise_or(skin_filled, head_sil)
     else:
-        # Fallback: head oval in upper-center
-        center_x = w // 2
-        center_y = int(h * 0.30)
-        cv2.ellipse(
-            face_mask, (center_x, center_y),
-            (int(w * 0.28), int(h * 0.35)), 0, 0, 360, 255, -1
-        )
-        natural_mask = face_mask
+        # Fallback: Face cascade or center ellipse
+        face_mask = np.zeros((h, w), dtype=np.uint8)
+        faces = []
+        if hasattr(cv2, 'CascadeClassifier'):
+            face_cascade = cv2.CascadeClassifier(
+                cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            )
+            faces = face_cascade.detectMultiScale(
+                gray_np, scaleFactor=1.1, minNeighbors=3, minSize=(60, 60)
+            )
+
+        if len(faces) > 0:
+            largest_face = max(faces, key=lambda r: r[2] * r[3])
+            fx, fy, fw, fh = largest_face
+            center_x = fx + fw // 2
+            center_y = fy + int(fh * 0.45)
+            axes_w = int(fw * 0.80)
+            axes_h = int(fh * 1.05)
+            cv2.ellipse(face_mask, (center_x, center_y), (axes_w, axes_h), 0, 0, 360, 255, -1)
+            chin_y = min(h, fy + int(fh * 1.10))
+            head_top_region = silhouette_mask.copy()
+            head_top_region[chin_y:, :] = 0
+            natural_mask = cv2.bitwise_or(face_mask, head_top_region)
+        else:
+            center_x = w // 2
+            center_y = int(h * 0.30)
+            cv2.ellipse(
+                face_mask, (center_x, center_y),
+                (int(w * 0.28), int(h * 0.35)), 0, 0, 360, 255, -1
+            )
+            natural_mask = face_mask
 
     # Morphological close/open to unify hair and skin into one contiguous region
     close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25))
@@ -182,11 +198,8 @@ def extract_masks(
     natural_mask = cv2.bitwise_and(natural_mask, silhouette_mask)
 
     # ── Step 4: Clothing Mask ──────────────────────────────────────────────
-    # Erode natural_mask before subtraction so a thin boundary overlap exists
-    erode_k = (NATURAL_OVERLAP_ERODE, NATURAL_OVERLAP_ERODE)
-    erode_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, erode_k)
-    eroded_natural = cv2.erode(natural_mask, erode_kernel)
-    clothing_mask = cv2.bitwise_and(silhouette_mask, cv2.bitwise_not(eroded_natural))
+    # Clothing is strictly silhouette minus natural_mask
+    clothing_mask = cv2.bitwise_and(silhouette_mask, cv2.bitwise_not(natural_mask))
 
     return silhouette_mask, natural_mask, clothing_mask
 

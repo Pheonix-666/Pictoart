@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
 class Settings(BaseSettings):
-    APP_NAME: str = "PICTOART - Doctor Pencil Sketch Certificate Generator"
+    APP_NAME: str = "PICTOART - Doctor Word-Art Certificate Generator"
     ENV: str = Field(default="development")
     DEBUG: bool = Field(default=True)
     SECRET_KEY: str = Field(default="super-secret-key-change-in-production-1234567890")
