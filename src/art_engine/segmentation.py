@@ -6,19 +6,13 @@ from PIL import Image
 from src.art_engine.art_config import NATURAL_OVERLAP_ERODE
 
 # ---------------------------------------------------------------------------
-# rembg & mediapipe import fallbacks
+# rembg import fallback
 # ---------------------------------------------------------------------------
 try:
     from rembg import remove as rembg_remove
     _REMBG_AVAILABLE = True
 except ImportError:
     _REMBG_AVAILABLE = False
-
-try:
-    import mediapipe as mp
-    _MEDIAPIPE_AVAILABLE = True
-except ImportError:
-    _MEDIAPIPE_AVAILABLE = False
 
 
 def _extract_silhouette_rembg(color_np: np.ndarray) -> np.ndarray:
@@ -48,55 +42,6 @@ def _extract_silhouette_otsu(gray_np: np.ndarray) -> np.ndarray:
     return mask
 
 
-def _detect_hair_heuristic(
-    gray_np: np.ndarray,
-    color_np: np.ndarray,
-    face_rect: Tuple[int, int, int, int],
-    silhouette_mask: np.ndarray
-) -> np.ndarray:
-    """
-    Heuristic hair detection:
-    Identifies hair in the region above and around the face bounding box by
-    excluding skin-colored pixels within the head ROI.
-    """
-    h, w = gray_np.shape
-    fx, fy, fw, fh = face_rect
-    hair_mask = np.zeros((h, w), dtype=np.uint8)
-
-    # Search region above and around face: 65% above forehead, 35% sideways
-    top = max(0, fy - int(fh * 0.65))
-    bottom = min(h, fy + int(fh * 0.85))
-    left = max(0, fx - int(fw * 0.35))
-    right = min(w, fx + fw + int(fw * 0.35))
-
-    roi_color = color_np[top:bottom, left:right]
-    roi_sil = silhouette_mask[top:bottom, left:right]
-
-    if roi_color.size == 0:
-        return hair_mask
-
-    # Skin color thresholding (HSV + YCrCb)
-    hsv = cv2.cvtColor(roi_color, cv2.COLOR_RGB2HSV)
-    ycrcb = cv2.cvtColor(roi_color, cv2.COLOR_RGB2YCrCb)
-
-    # Typical skin color ranges
-    lower_hsv = np.array([0, 15, 60], dtype=np.uint8)
-    upper_hsv = np.array([25, 170, 255], dtype=np.uint8)
-    mask_hsv = cv2.inRange(hsv, lower_hsv, upper_hsv)
-
-    lower_ycrcb = np.array([0, 133, 77], dtype=np.uint8)
-    upper_ycrcb = np.array([255, 173, 127], dtype=np.uint8)
-    mask_ycrcb = cv2.inRange(ycrcb, lower_ycrcb, upper_ycrcb)
-
-    skin_roi = cv2.bitwise_and(mask_hsv, mask_ycrcb)
-
-    # Non-skin pixels inside ROI silhouette represent hair
-    hair_roi = cv2.bitwise_and(roi_sil, cv2.bitwise_not(skin_roi))
-
-    hair_mask[top:bottom, left:right] = hair_roi
-    return hair_mask
-
-
 def extract_masks(
     gray_np: np.ndarray,
     color_np: np.ndarray,
@@ -119,117 +64,75 @@ def extract_masks(
     silhouette_mask = cv2.GaussianBlur(silhouette_mask, (15, 15), 0)
     _, silhouette_mask = cv2.threshold(silhouette_mask, 100, 255, cv2.THRESH_BINARY)
 
-    # ── Step 2: Face, Neck & Hair detection (Natural Mask) ───────────────────
-    hsv = cv2.cvtColor(color_np, cv2.COLOR_RGB2HSV)
+    # ── Step 2: Face & Neck Landmark Detection ──────────────────────────────
+    fx, fy, fw, fh = w // 4, int(h * 0.15), w // 2, int(h * 0.45)
+    chin_y = fy + fh
+    neck_bottom_y = min(h, chin_y + int(fh * 0.48))
+    face_detected = False
+
+    # Try YuNet face detector if model file exists
+    yunet_path = "yunet_face.onnx"
+    if os.path.exists(yunet_path):
+        try:
+            detector = cv2.FaceDetectorYN.create(yunet_path, "", (w, h), score_threshold=0.5)
+            color_bgr = cv2.cvtColor(color_np, cv2.COLOR_RGB2BGR)
+            _, faces = detector.detect(color_bgr)
+            if faces is not None and len(faces) > 0:
+                f = faces[0]
+                fx, fy, fw, fh = int(f[0]), int(f[1]), int(f[2]), int(f[3])
+                mouth_y = int((f[11] + f[13]) / 2)
+                nose_y = int(f[9])
+                chin_y = int(mouth_y + (mouth_y - nose_y) * 1.30)
+                neck_bottom_y = min(h, chin_y + int(fh * 0.48))
+                face_detected = True
+        except Exception:
+            pass
+
+    if not face_detected:
+        # Fallback to Haar Cascade
+        if hasattr(cv2, 'CascadeClassifier'):
+            try:
+                face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+                faces = face_cascade.detectMultiScale(gray_np, scaleFactor=1.1, minNeighbors=3, minSize=(60, 60))
+                if len(faces) > 0:
+                    largest = max(faces, key=lambda r: r[2] * r[3])
+                    fx, fy, fw, fh = largest
+                    chin_y = fy + int(fh * 1.05)
+                    neck_bottom_y = min(h, chin_y + int(fh * 0.48))
+                    face_detected = True
+            except Exception:
+                pass
+
+    # ── Step 3: Natural Mask Construction (Head + Face + Neck) ──────────────
+    head_mask = silhouette_mask.copy()
+    head_mask[neck_bottom_y:, :] = 0
+
+    # Clean neck boundary width
+    neck_left = max(0, fx - int(fw * 0.10))
+    neck_right = min(w, fx + fw + int(fw * 0.10))
+    head_mask[chin_y:neck_bottom_y, :neck_left] = 0
+    head_mask[chin_y:neck_bottom_y, neck_right:] = 0
+
+    # Also detect skin pixels to ensure natural contours under chin
     ycrcb = cv2.cvtColor(color_np, cv2.COLOR_RGB2YCrCb)
-    skin_ycrcb = cv2.inRange(ycrcb, np.array([0, 133, 77]), np.array([255, 173, 127]))
-    skin_hsv = cv2.inRange(hsv, np.array([0, 15, 55]), np.array([28, 175, 255]))
+    hsv = cv2.cvtColor(color_np, cv2.COLOR_RGB2HSV)
+    skin_ycrcb = cv2.inRange(ycrcb, np.array([0, 130, 75]), np.array([255, 180, 130]))
+    skin_hsv = cv2.inRange(hsv, np.array([0, 15, 50]), np.array([30, 180, 255]))
     skin = cv2.bitwise_and(skin_ycrcb, skin_hsv)
     skin = cv2.bitwise_and(skin, silhouette_mask)
-    skin_close_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25))
-    skin_filled = cv2.morphologyEx(skin, cv2.MORPH_CLOSE, skin_close_k)
+    skin[neck_bottom_y:, :] = 0
 
-    skin_px = np.count_nonzero(skin_filled)
-    sil_px = max(1, np.count_nonzero(silhouette_mask))
+    natural_mask = cv2.bitwise_or(head_mask, skin)
 
-    if skin_px >= sil_px * 0.05:
-        # Reliable skin segmentation capturing face + natural neck down into collar
-        skin_pts = np.argwhere(skin_filled > 0)
-        min_y = skin_pts[:, 0].min()
-        max_y = skin_pts[:, 0].max()
-        min_x = skin_pts[:, 1].min()
-        max_x = skin_pts[:, 1].max()
-        center_x = (min_x + max_x) // 2
-        span_w = max_x - min_x
-
-        # Hair is above the eyes/forehead in the silhouette
-        chin_y = int(min_y + (max_y - min_y) * 0.55)
-        head_sil = silhouette_mask.copy()
-        head_sil[chin_y:, :] = 0
-        head_left = max(0, center_x - int(span_w * 0.95))
-        head_right = min(w, center_x + int(span_w * 0.95))
-        head_sil[:, :head_left] = 0
-        head_sil[:, head_right:] = 0
-        natural_mask = cv2.bitwise_or(skin_filled, head_sil)
-    else:
-        # Fallback: Face cascade or center ellipse
-        face_mask = np.zeros((h, w), dtype=np.uint8)
-        faces = []
-        if hasattr(cv2, 'CascadeClassifier'):
-            face_cascade = cv2.CascadeClassifier(
-                cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-            )
-            faces = face_cascade.detectMultiScale(
-                gray_np, scaleFactor=1.1, minNeighbors=3, minSize=(60, 60)
-            )
-
-        if len(faces) > 0:
-            largest_face = max(faces, key=lambda r: r[2] * r[3])
-            fx, fy, fw, fh = largest_face
-            center_x = fx + fw // 2
-            center_y = fy + int(fh * 0.45)
-            axes_w = int(fw * 0.80)
-            axes_h = int(fh * 1.05)
-            cv2.ellipse(face_mask, (center_x, center_y), (axes_w, axes_h), 0, 0, 360, 255, -1)
-            chin_y = min(h, fy + int(fh * 1.10))
-            head_top_region = silhouette_mask.copy()
-            head_top_region[chin_y:, :] = 0
-            natural_mask = cv2.bitwise_or(face_mask, head_top_region)
-        else:
-            center_x = w // 2
-            center_y = int(h * 0.30)
-            cv2.ellipse(
-                face_mask, (center_x, center_y),
-                (int(w * 0.28), int(h * 0.35)), 0, 0, 360, 255, -1
-            )
-            natural_mask = face_mask
-
-    # Morphological close/open to unify hair and skin into one contiguous region
-    close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25))
+    # Smooth and unify natural mask
+    close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (31, 31))
     natural_mask = cv2.morphologyEx(natural_mask, cv2.MORPH_CLOSE, close_kernel)
-    open_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
-    natural_mask = cv2.morphologyEx(natural_mask, cv2.MORPH_OPEN, open_kernel)
-
-    # Smooth edges of natural mask
-    natural_mask = cv2.GaussianBlur(natural_mask, (21, 21), 0)
-    _, natural_mask = cv2.threshold(natural_mask, 100, 255, cv2.THRESH_BINARY)
-
-    # Clip natural_mask to silhouette
     natural_mask = cv2.bitwise_and(natural_mask, silhouette_mask)
 
-    # ── Step 4: Clothing Mask ──────────────────────────────────────────────
-    # Clothing is strictly silhouette minus natural_mask
+    # ── Step 4: Clothing Mask ───────────────────────────────────────────────
     clothing_mask = cv2.bitwise_and(silhouette_mask, cv2.bitwise_not(natural_mask))
 
     return silhouette_mask, natural_mask, clothing_mask
-
-
-def save_debug_masks(
-    gray_np: np.ndarray,
-    color_np: np.ndarray,
-    output_dir: str = "./debug_output",
-) -> None:
-    """Debug utility to save silhouette_mask, natural_mask, clothing_mask PNGs."""
-    os.makedirs(output_dir, exist_ok=True)
-    silhouette_mask, natural_mask, clothing_mask = extract_masks(gray_np, color_np)
-
-    cv2.imwrite(os.path.join(output_dir, "silhouette_mask.png"), silhouette_mask)
-    cv2.imwrite(os.path.join(output_dir, "natural_mask.png"), natural_mask)
-    cv2.imwrite(os.path.join(output_dir, "clothing_mask.png"), clothing_mask)
-    cv2.imwrite(os.path.join(output_dir, "face_mask.png"), natural_mask)
-    cv2.imwrite(os.path.join(output_dir, "body_mask.png"), clothing_mask)
-
-
-    # Overview overlay: natural in blue, clothing in green
-    overview = cv2.cvtColor(color_np, cv2.COLOR_RGB2BGR).copy()
-    overview[natural_mask > 0] = (overview[natural_mask > 0] * 0.4 + np.array([200, 100, 50]) * 0.6).astype(np.uint8)
-    overview[clothing_mask > 0] = (overview[clothing_mask > 0] * 0.4 + np.array([50, 200, 50]) * 0.6).astype(np.uint8)
-    cv2.imwrite(os.path.join(output_dir, "mask_overview.png"), overview)
-
-    print(f"[Debug] Masks saved to '{output_dir}':")
-    print(f"  silhouette active pixels : {np.count_nonzero(silhouette_mask)}")
-    print(f"  natural    active pixels : {np.count_nonzero(natural_mask)}")
-    print(f"  clothing   active pixels : {np.count_nonzero(clothing_mask)}")
 
 
 def extract_silhouette_mask(gray_np: np.ndarray, color_np: np.ndarray) -> np.ndarray:
